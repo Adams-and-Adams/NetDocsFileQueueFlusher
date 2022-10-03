@@ -93,7 +93,7 @@ namespace NetDocsFileQueueFlusher
                             _fileObject.Guid = row.Field<string>("GUID");
                             _fileObject.SourceFile = row.Field<string>("SOURCEFILE");
                             _fileObject.NdUrl = row.Field<string>("NDURL");
-                            _fileObject.FolderId = row.Field<string>("FOLDERID");
+                            _fileObject.FolderId = row.Field<string>("NDFOLDERID");
 
                             var _uploadResult = await new UploadToNdHelper(_restHelper).UploadToND(_sqlConnection, _fileObject, _accessToken);
                             if (!_uploadResult.IsSuccess)
