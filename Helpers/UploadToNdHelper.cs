@@ -1,4 +1,5 @@
 ﻿using NetDocsFileQueueFlusher.Models;
+using Newtonsoft.Json;
 using RestSharp;
 using System;
 using System.Collections.Generic;
@@ -18,16 +19,16 @@ namespace NetDocsFileQueueFlusher.Helpers
             _restHelper = restHelper;
         }
 
-        public async Task<Result<string>> UploadToND(SqlConnection _sqlConnection, FileObject _fileObject, string _accessToken)
+        public async Task<Result<UploadResultObject>> UploadToND(SqlConnection _sqlConnection, FileObject _fileObject, string _accessToken)
         {
             string _guid = _fileObject.Guid;
             string _uploadFile = _fileObject.SourceFile;
-            string _fileName = Path.GetFileName(_uploadFile); 
+            string _fileName = _fileObject.NdFileName; 
             string _NdUrl = _fileObject.NdUrl;
-            string _folderId = _fileObject.FolderId;
+            string _folderId = _fileObject.NdFolderId;
 
             var _convertResult = await ConvertToBytes(_uploadFile);
-            if (!_convertResult.IsSuccess) return Result<string>.Failure(_convertResult.Error);
+            if (!_convertResult.IsSuccess) return Result<UploadResultObject>.Failure(_convertResult.Error);
             var _fileContent = _convertResult.Value;
 
             RestRequest restRequest = _restHelper.FormRequest(Enums.RestType.Post, _NdUrl);
@@ -38,9 +39,10 @@ namespace NetDocsFileQueueFlusher.Helpers
             restRequest.AddParameter("failOnError", "true");
 
             var restResponseResult = await _restHelper.executeRequest(restRequest, _accessToken);
-            if (!restResponseResult.IsSuccess) return Result<string>.Failure(restResponseResult.Error);
+            if (!restResponseResult.IsSuccess) return Result<UploadResultObject>.Failure(restResponseResult.Error);
+            var _result = JsonConvert.DeserializeObject<UploadResultObject>(restResponseResult.Value.Content);
 
-            return Result<string>.Success("Successful");
+            return Result<UploadResultObject>.Success(_result);
         }
 
         private async Task<Result<byte[]>> ConvertToBytes(string _filename)

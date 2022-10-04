@@ -23,11 +23,12 @@ namespace NetDocsFileQueueFlusher.Helpers
                 request.AddHeader("Content-Type", "application/x-www-form-urlencoded");
                 request.AddHeader("Authorization", $"Basic {autho}");
                 request.AddHeader("Accept", "application/json");
-                request.AddParameter("grant_type", accessTokenModel.AccessTokenBody.GrandType);
-                request.AddParameter("scope", accessTokenModel.AccessTokenBody.Scope);
+                request.AddParameter("grant_type", "client_credentials");
+                request.AddParameter("scope", "full");
 
                 var response = await client.ExecuteAsync(request);
                 AccessTokenObject? tokenObject = JsonConvert.DeserializeObject<AccessTokenObject>(response.Content);
+                if (response.StatusCode != System.Net.HttpStatusCode.OK) return Result<string>.Failure($"Failed to get an Access Token : {tokenObject.error}");
 
                 return Result<string>.Success(tokenObject.access_token);
             }

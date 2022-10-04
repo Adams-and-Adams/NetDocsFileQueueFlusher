@@ -24,8 +24,6 @@ namespace NetDocsFileQueueFlusher.Helpers
                 request.AddHeader("Authorization", "Bearer " + accessToken);
                 var response = await restClient.ExecuteAsync(request);
 
-                //if(response.StatusCode != HttpStatusCode.OK && response.StatusCode != HttpStatusCode.NoContent) return Result<IRestResponse>.Failure(response.Content);
-
                 return Result<IRestResponse>.Success(response);
             }
             catch (Exception ex)
@@ -33,7 +31,6 @@ namespace NetDocsFileQueueFlusher.Helpers
                 return Result<IRestResponse>.Failure($"Execute Rest Request Failed : {ex.Message}");
             }
         }
-
 
         public RestRequest FormRequest(RestType rtype, string data)
         {
