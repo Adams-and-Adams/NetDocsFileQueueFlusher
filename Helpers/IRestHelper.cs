@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using RestSharp;
-using NetDocsFileQueueFlusher.Helpers;
-using NetDocsFileQueueFlusher.Models;
+﻿using RestSharp;
 
 namespace NetDocsFileQueueFlusher.Helpers
 {

@@ -1,11 +1,9 @@
 ﻿using NetDocsFileQueueFlusher.Models;
 using Newtonsoft.Json;
 using RestSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
 
 namespace NetDocsFileQueueFlusher.Helpers
 {
@@ -29,6 +27,7 @@ namespace NetDocsFileQueueFlusher.Helpers
                 var response = await client.ExecuteAsync(request);
                 AccessTokenObject? tokenObject = JsonConvert.DeserializeObject<AccessTokenObject>(response.Content);
                 if (response.StatusCode != System.Net.HttpStatusCode.OK) return Result<string>.Failure($"Failed to get an Access Token : {tokenObject.error}");
+
 
                 return Result<string>.Success(tokenObject.access_token);
             }

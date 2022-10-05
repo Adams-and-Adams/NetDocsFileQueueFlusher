@@ -7,6 +7,7 @@ using System.Diagnostics;
 
 #pragma warning disable CS8604 // Possible null reference argument.
 #pragma warning disable CS8601 // Possible null reference assignment.
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
 
 namespace NetDocsFileQueueFlusher
 {
@@ -19,6 +20,7 @@ namespace NetDocsFileQueueFlusher
         public bool Paused { get; set; }
         public SqlConnection _sqlConnection = new SqlConnection();
         public SettingsModel _settingsModel = new SettingsModel();
+        public Stopwatch? stopwatch;
 
         public Worker(ILogger<Worker> logger, IConfiguration configuration, IRestHelper restHelper)
         {
@@ -53,6 +55,8 @@ namespace NetDocsFileQueueFlusher
             _settingsModel = _settingsResult.Value;
             _logger.LogInformation("Connected to DB");
 
+            stopwatch = new Stopwatch();
+
             return base.StartAsync(cancellationToken);
         }
 
@@ -71,36 +75,34 @@ namespace NetDocsFileQueueFlusher
             }
         }
 
-        private async void DoWork()
+        private void DoWork()
         {
             Paused = true;
 
             try
             {
-                var _getQueueResult = await GetDataHelper.Helper(null, _sqlConnection, "AAMicroserviceLargeFileFlushQueue");
+                var _getQueueResult = GetDataHelper.Helper(null, _sqlConnection, "AAMicroserviceLargeFileFlushQueue").Result;
                 if (!_getQueueResult.IsSuccess)
                 {
                     _logger.LogInformation($"Getting the File Queue - {_getQueueResult.Error}");
                 }
                 else
                 {
+
                     if (_getQueueResult.Value.Rows.Count > 0)
                     {
-                        _logger.LogInformation($"Queue Flush Status - Started");
                         foreach (DataRow row in _getQueueResult.Value.AsEnumerable())
                         {
-                            var _accessTokenResult = await new AccessTokenHelper().GetAccessToken(_settingsModel.AccessTokenModel);
+                            stopwatch.Restart();
+
+                            var _accessTokenResult = new AccessTokenHelper().GetAccessToken(_settingsModel.AccessTokenModel).Result;
                             if (!_accessTokenResult.IsSuccess)
                             {
-                                _logger.LogError($"Getting a ND AccessToken - {_accessTokenResult.Error}");
+                                stopwatch.Stop();
+                                _logger.LogError($"ND Access Token Generated - {_accessTokenResult.Error}");
                             }
                             else
                             {
-                                var _accessToken = _accessTokenResult.Value;
-                                _logger.LogInformation($"ND Access Token Generated : {_accessToken}");
-
-                                Stopwatch stopwatch = new Stopwatch();
-                                stopwatch.Start();
                                 FileObject _fileObject = new FileObject();
                                 _fileObject.Guid = row.Field<string>("GUID");
                                 _fileObject.SourceFile = row.Field<string>("SOURCEFILE");
@@ -108,14 +110,20 @@ namespace NetDocsFileQueueFlusher
                                 _fileObject.NdUrl = row.Field<string>("NDURL");
                                 _fileObject.NdFolderId = row.Field<string>("NDFOLDERID");
 
-                                _logger.LogInformation($"Upload to ND Started : {_fileObject.SourceFile}");
-                                var _uploadResult = await new UploadToNdHelper(_restHelper).UploadToND(_sqlConnection, _fileObject, _accessToken);
+                                _logger.LogInformation($"ND Upload Started : {_fileObject.SourceFile}");
+
+                                var _accessToken = _accessTokenResult.Value;
+                                _logger.LogInformation($"ND Access Token Generated : Successful");
+
+                                var _uploadResult = new UploadToNdHelper(_restHelper).UploadToND(_sqlConnection, _fileObject, _accessToken);
                                 if (!_uploadResult.IsSuccess)
                                 {
                                     stopwatch.Stop();
+                                    TimeSpan timeTaken = stopwatch.Elapsed;
+                                    string _elapse = timeTaken.ToString(@"m\:ss\.fff");
                                     _fileObject.Status = "Failed";
                                     _fileObject.Error = _uploadResult.Error;
-                                    _logger.LogInformation($"Upload to ND Failed ({stopwatch.Elapsed.Seconds.ToString("0.000")} s) - Filename [{_fileObject.NdFileName}], Source [{Path.GetFileName(_fileObject.SourceFile)}] : {_uploadResult.Error}");
+                                    _logger.LogError($"ND Upload Failed ({_elapse}) - Filename [{_fileObject.NdFileName}], Source [{Path.GetFileName(_fileObject.SourceFile)}] : {_uploadResult.Error}");
                                 }
                                 else
                                 {
@@ -126,30 +134,32 @@ namespace NetDocsFileQueueFlusher
                                     var _updateData = JsonConvert.SerializeObject(_fileObject);
                                     List<ProcParmObject> parmObj = new List<ProcParmObject>();
                                     parmObj.Add(new ProcParmObject { ParmName = "@x_data", ParmValue = _updateData });
-                                    var _getUpdateQueueResult = await GetDataHelper.Helper(parmObj, _sqlConnection, "AAMicroserviceLargeFileUpdateQueue");
+                                    var _getUpdateQueueResult = GetDataHelper.Helper(parmObj, _sqlConnection, "AAMicroserviceLargeFileUpdateQueue").Result;
 
                                     // Update the Logger
                                     stopwatch.Stop();
+                                    TimeSpan timeTaken = stopwatch.Elapsed;
+                                    string _elapse = timeTaken.ToString(@"m\:ss\.fff");
+
                                     if (!_getQueueResult.IsSuccess)
                                         _logger.LogError($"Update Queue - {_getQueueResult.Error}");
                                     else
                                     {
-                                        _logger.LogInformation($"Upload to ND Completed ({stopwatch.Elapsed.Seconds.ToString("0.000")} s) - Filename [{_fileObject.NdFileName}], Source [{Path.GetFileName(_fileObject.SourceFile)}]");
+                                        _logger.LogInformation($"ND Upload Completed ({_elapse}) - Filename [{_fileObject.NdFileName}], Source [{Path.GetFileName(_fileObject.SourceFile)}]");
                                         File.Delete(_fileObject.SourceFile);
                                     }
                                 }
                             }
                         }
-                        _logger.LogInformation($"Queue Flush Status - Completed");
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Upload Process Failed : {ex.Message}");
+                _logger.LogError($"ND Upload Process Failed : {ex.Message}");
             }
 
             Paused = false;
-        }  
+        }
     }
 }

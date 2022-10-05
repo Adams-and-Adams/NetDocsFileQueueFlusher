@@ -1,11 +1,10 @@
 ﻿using NetDocsFileQueueFlusher.Models;
-using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
+#pragma warning disable CS8604 // Possible null reference argument.
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning disable CS8601 // Possible null reference assignment.
 
 namespace NetDocsFileQueueFlusher.Helpers
 {
@@ -21,12 +20,14 @@ namespace NetDocsFileQueueFlusher.Helpers
         public async Task<Result<SettingsModel>> GetValues()
         {
             var _readSettingsResult = await ReadSettings(_sqlConnection);
+
             if (!_readSettingsResult.IsSuccess) return Result<SettingsModel>.Failure(_readSettingsResult.Error);
             var _readSettings = _readSettingsResult.Value;
 
             SettingsModel _settings = new SettingsModel();
             foreach (DataRow row in _readSettings.AsEnumerable())
             {
+
                 string area = row.Field<string>("o_Area");
 
                 if (area == "Globals")
@@ -34,6 +35,7 @@ namespace NetDocsFileQueueFlusher.Helpers
                     switch (row.Field<string>("o_Setting"))
                     {
                         case "DocumentServerFolder":
+
                             _settings.DocumentServerFolder = row.Field<string>("o_Value");
                             break;
                         case "DocumentMapDrive":

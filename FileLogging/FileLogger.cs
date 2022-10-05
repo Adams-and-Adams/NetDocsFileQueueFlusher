@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Diagnostics.CodeAnalysis;
+
+#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
 
 namespace NetDocsFileQueueFlusher.FileLogging
 {
@@ -16,7 +13,8 @@ namespace NetDocsFileQueueFlusher.FileLogging
             _loggerProvider = loggerProvider;
         }
 
-        public IDisposable BeginScope<TState>(TState state)
+
+        public IDisposable? BeginScope<TState>(TState state)
         {
             return null;
         }

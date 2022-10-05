@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace NetDocsFileQueueFlusher.Models
+﻿namespace NetDocsFileQueueFlusher.Models
 {
     public class UploadResultObject
     {
@@ -16,7 +10,7 @@ namespace NetDocsFileQueueFlusher.Models
         public string? createdByGuid { get; set; }
         public string? envId { get; set; }
         public string? extension { get; set; }
-        public string id { get; set; }
+        public string? id { get; set; }
         public int latestVersionNumber { get; set; }
         public bool locked { get; set; }
         public DateTime modified { get; set; }

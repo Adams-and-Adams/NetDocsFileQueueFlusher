@@ -3,6 +3,7 @@ using NetDocsFileQueueFlusher.FileLogging;
 using NetDocsFileQueueFlusher.Helpers;
 
 IHost host = Host.CreateDefaultBuilder(args)
+    .UseWindowsService()
     .ConfigureServices(services =>
     {
         services.AddHostedService<Worker>();
