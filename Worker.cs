@@ -37,8 +37,8 @@ namespace NetDocsFileQueueFlusher
             _logger.LogInformation("=========================================================================================");
             _logger.LogInformation("File Queue Flusher Started");
 
-            //var _dbConnectResult = new DbConnectHelper(_configuration).OpenConnection("MicroservicesLIVE").Result; // UNCOMMENT FOR LIVE
-            var _dbConnectResult = new DbConnectHelper(_configuration).OpenConnection("MicroservicesDEV").Result; // COMMENT FOR LIVE
+            var _dbConnectResult = new DbConnectHelper(_configuration).OpenConnection("MicroservicesLIVE").Result; //  TODO : UNCOMMENT FOR LIVE
+            //var _dbConnectResult = new DbConnectHelper(_configuration).OpenConnection("MicroservicesDEV").Result; //  TODO : COMMENT FOR LIVE
             if (!_dbConnectResult.IsSuccess)
             {
                 _logger.LogInformation($"{DateTime.Now} - {_dbConnectResult.Error}");
@@ -77,6 +77,7 @@ namespace NetDocsFileQueueFlusher
 
         private void DoWork()
         {
+            FileObject _fileObject;
             Paused = true;
 
             try
@@ -84,82 +85,119 @@ namespace NetDocsFileQueueFlusher
                 var _getQueueResult = GetDataHelper.Helper(null, _sqlConnection, "AAMicroserviceLargeFileFlushQueue").Result;
                 if (!_getQueueResult.IsSuccess)
                 {
-                    _logger.LogInformation($"Getting the File Queue - {_getQueueResult.Error}");
+                    _logger.LogError($"Getting the File Queue - {_getQueueResult.Error}");
+                    Paused = false;
                 }
                 else
                 {
-
                     if (_getQueueResult.Value.Rows.Count > 0)
                     {
                         foreach (DataRow row in _getQueueResult.Value.AsEnumerable())
                         {
                             stopwatch.Restart();
+                            _fileObject = new FileObject();
 
-                            var _accessTokenResult = new AccessTokenHelper().GetAccessToken(_settingsModel.AccessTokenModel).Result;
-                            if (!_accessTokenResult.IsSuccess)
+                            try
                             {
-                                stopwatch.Stop();
-                                _logger.LogError($"ND Access Token Generated - {_accessTokenResult.Error}");
-                            }
-                            else
-                            {
-                                FileObject _fileObject = new FileObject();
                                 _fileObject.Guid = row.Field<string>("GUID");
                                 _fileObject.SourceFile = row.Field<string>("SOURCEFILE");
                                 _fileObject.NdFileName = row.Field<string>("DESTINATIONFILE");
                                 _fileObject.NdUrl = row.Field<string>("NDURL");
                                 _fileObject.NdFolderId = row.Field<string>("NDFOLDERID");
 
-                                _logger.LogInformation($"ND Upload Started : {_fileObject.SourceFile}");
-
-                                var _accessToken = _accessTokenResult.Value;
-                                _logger.LogInformation($"ND Access Token Generated : Successful");
-
-                                var _uploadResult = new UploadToNdHelper(_restHelper).UploadToND(_sqlConnection, _fileObject, _accessToken);
-                                if (!_uploadResult.IsSuccess)
+                                var _accessTokenResult = new AccessTokenHelper().GetAccessToken(_settingsModel.AccessTokenModel).Result;
+                                if (!_accessTokenResult.IsSuccess)
                                 {
                                     stopwatch.Stop();
-                                    TimeSpan timeTaken = stopwatch.Elapsed;
-                                    string _elapse = timeTaken.ToString(@"m\:ss\.fff");
-                                    _fileObject.Status = "Failed";
-                                    _fileObject.Error = _uploadResult.Error;
-                                    _logger.LogError($"ND Upload Failed ({_elapse}) - Filename [{_fileObject.NdFileName}], Source [{Path.GetFileName(_fileObject.SourceFile)}] : {_uploadResult.Error}");
+                                    _logger.LogError($"ND Access Token Generated - {_accessTokenResult.Error}");
+                                    _fileObject.Status = "Requested";
+                                    UpdateQueue(_fileObject);
+                                    Paused = false;
                                 }
                                 else
                                 {
-                                    // Update the queue
-                                    _fileObject.Status = "Completed";
-                                    _fileObject.NdDocUrl = "https://eu.netdocuments.com/neWeb2/goId.aspx?id=" + _uploadResult.Value.id + "&open=Y";
-                                    _fileObject.NdDocId = _uploadResult.Value.envId;
-                                    var _updateData = JsonConvert.SerializeObject(_fileObject);
-                                    List<ProcParmObject> parmObj = new List<ProcParmObject>();
-                                    parmObj.Add(new ProcParmObject { ParmName = "@x_data", ParmValue = _updateData });
-                                    var _getUpdateQueueResult = GetDataHelper.Helper(parmObj, _sqlConnection, "AAMicroserviceLargeFileUpdateQueue").Result;
+                                    var _accessToken = _accessTokenResult.Value;
 
-                                    // Update the Logger
-                                    stopwatch.Stop();
-                                    TimeSpan timeTaken = stopwatch.Elapsed;
-                                    string _elapse = timeTaken.ToString(@"m\:ss\.fff");
+                                    _logger.LogInformation($"ND Upload Started : {_fileObject.SourceFile}");
+                                    _logger.LogInformation($"ND Access Token Generated : Successful");
 
-                                    if (!_getQueueResult.IsSuccess)
-                                        _logger.LogError($"Update Queue - {_getQueueResult.Error}");
+                                    var _uploadResult = new UploadToNdHelper(_restHelper).UploadToND(_sqlConnection, _fileObject, _accessToken);
+                                    if (!_uploadResult.IsSuccess)
+                                    {
+                                        stopwatch.Stop();
+                                        TimeSpan timeTaken = stopwatch.Elapsed;
+                                        string _elapse = timeTaken.ToString(@"m\:ss\.fff");
+                                        _fileObject.Status = "Failed";
+                                        _fileObject.Error = _uploadResult.Error;
+                                        _logger.LogError($"ND Upload Failed ({_elapse}) - Filename [{_fileObject.NdFileName}], Source [{Path.GetFileName(_fileObject.SourceFile)}] : {_uploadResult.Error}");
+
+                                        _fileObject.Status = "Requested";
+                                        UpdateQueue(_fileObject);
+                                        Paused = false;
+                                    }
                                     else
                                     {
-                                        _logger.LogInformation($"ND Upload Completed ({_elapse}) - Filename [{_fileObject.NdFileName}], Source [{Path.GetFileName(_fileObject.SourceFile)}]");
-                                        File.Delete(_fileObject.SourceFile);
+                                        // Update the queue
+                                        _fileObject.Status = "Completed";
+                                        _fileObject.NdDocUrl = "https://eu.netdocuments.com/neWeb2/goId.aspx?id=" + _uploadResult.Value.id + "&open=Y";
+                                        _fileObject.NdDocId = _uploadResult.Value.envId;
+                                        _fileObject.Error = "";
+                                        UpdateQueue(_fileObject);
+
+                                        // Update the Logger
+                                        stopwatch.Stop();
+                                        TimeSpan timeTaken = stopwatch.Elapsed;
+                                        string _elapse = timeTaken.ToString(@"m\:ss\.fff");
+
+                                        if (!_getQueueResult.IsSuccess)
+                                            _logger.LogError($"Update Queue - {_getQueueResult.Error}");
+                                        else
+                                        {
+                                            _logger.LogInformation($"ND Upload Completed ({_elapse}) - Filename [{_fileObject.NdFileName}], Source [{Path.GetFileName(_fileObject.SourceFile)}]");
+                                            File.Delete(_fileObject.SourceFile);
+                                        }
+                                        Paused = false;
                                     }
                                 }
                             }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError($"ND File Upload Failed : {ex.Message}");
+                                _fileObject.Status = "Requested";
+                                _fileObject.Error = $"Upload reset to Requested but an Error Occured : {ex.Message}";
+                                UpdateQueue(_fileObject);
+                                Paused = false;
+                            }
                         }
+                    }
+                    else
+                    {
+                        Paused = false;
                     }
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError($"ND Upload Process Failed : {ex.Message}");
+                Paused = false;
             }
+        }
 
-            Paused = false;
+        private void UpdateQueue(FileObject _fileObject)
+        {
+            try
+            {
+                var _updateData = JsonConvert.SerializeObject(_fileObject);
+                List<ProcParmObject> parmObj = new List<ProcParmObject>();
+                parmObj.Add(new ProcParmObject { ParmName = "@x_data", ParmValue = _updateData });
+                var _getUpdateQueueResult = GetDataHelper.Helper(parmObj, _sqlConnection, "AAMicroserviceLargeFileUpdateQueue").Result;
+                if(!_getUpdateQueueResult.IsSuccess) _logger.LogError($"Update Queue Failed : {_getUpdateQueueResult.Error}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Update Queue Failed : {ex.Message}");
+                Paused = false;
+            }
         }
     }
 }
