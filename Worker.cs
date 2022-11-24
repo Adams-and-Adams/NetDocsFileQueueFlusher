@@ -35,10 +35,10 @@ namespace NetDocsFileQueueFlusher
         {
             _logger.LogInformation("");
             _logger.LogInformation("=========================================================================================");
-            _logger.LogInformation("File Queue Flusher Started");
+            _logger.LogInformation("File Queue Flusher V1.1 Started");
 
-            var _dbConnectResult = new DbConnectHelper(_configuration).OpenConnection("MicroservicesLIVE").Result; //  TODO : UNCOMMENT FOR LIVE
-            //var _dbConnectResult = new DbConnectHelper(_configuration).OpenConnection("MicroservicesDEV").Result; //  TODO : COMMENT FOR LIVE
+            //var _dbConnectResult = new DbConnectHelper(_configuration).OpenConnection("MicroservicesLIVE").Result; //  TODO : UNCOMMENT FOR LIVE
+            var _dbConnectResult = new DbConnectHelper(_configuration).OpenConnection("MicroservicesDEV").Result; //  TODO : COMMENT FOR LIVE
             if (!_dbConnectResult.IsSuccess)
             {
                 _logger.LogInformation($"{DateTime.Now} - {_dbConnectResult.Error}");

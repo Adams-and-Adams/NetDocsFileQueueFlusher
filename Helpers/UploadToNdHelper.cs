@@ -63,5 +63,36 @@ namespace NetDocsFileQueueFlusher.Helpers
                 return Result<byte[]>.Success(_bytes);
             });
         }
+
+        //private async Task<string> GetFolderId(NetDocsParameterObject.CWFObject detailObject)
+        //{
+        //    PayloadObject _payload = new PayloadObject();
+        //    string _folderId = "";
+
+        //    _payload.ActionName = "Folders";
+        //    _payload.ActionDescription = "Get Folder Id";
+        //    _payload.Action = "GetId";
+        //    _payload.ActionParameters.Add(new ActionParameter { ParameterName = "CabinetName", ParameterValue = detailObject.CabinetName });
+        //    _payload.ActionParameters.Add(new ActionParameter { ParameterName = "WorkspaceName", ParameterValue = detailObject.WorkspaceName });
+        //    _payload.ActionParameters.Add(new ActionParameter { ParameterName = "FolderName", ParameterValue = detailObject.FolderName });
+        //    _payload.AuthoCollection.Add(new ActionParameter { ParameterName = "AuthoType", ParameterValue = _apiGetewayAuthenticationType });
+        //    _payload.AuthoCollection.Add(new ActionParameter { ParameterName = "AuthoUser", ParameterValue = _userName });
+
+        //    var _body = JsonConvert.SerializeObject(_payload);
+        //    HttpContent _httpContent = new StringContent(_body, Encoding.UTF8, "application/json");
+
+        //    using (HttpResponseMessage _response = await _apIGatewayHelper.APIClient.PostAsync(_apiGetewayURL, _httpContent))
+        //    {
+        //        if (_response.IsSuccessStatusCode)
+        //        {
+        //            var _jdata = await _response.Content.ReadAsStringAsync();
+        //            var _data = JsonConvert.DeserializeObject<NetDocsFoldersResultDTO>(_jdata);
+
+        //            if (_data.result.Length > 0) _folderId = _data.result[0].envId.Split('|')[0];
+        //        }
+        //    }
+
+        //    return _folderId;
+        //}
     }
 }
