@@ -35,25 +35,25 @@ namespace NetDocsFileQueueFlusher
         {
             _logger.LogInformation("");
             _logger.LogInformation("=========================================================================================");
-            _logger.LogInformation("File Queue Flusher V1.1 Started");
+            _logger.LogInformation("File Queue Flusher V2 Started");
 
-            //var _dbConnectResult = new DbConnectHelper(_configuration).OpenConnection("MicroservicesLIVE").Result; //  TODO : UNCOMMENT FOR LIVE
-            var _dbConnectResult = new DbConnectHelper(_configuration).OpenConnection("MicroservicesDEV").Result; //  TODO : COMMENT FOR LIVE
-            if (!_dbConnectResult.IsSuccess)
-            {
-                _logger.LogInformation($"{DateTime.Now} - {_dbConnectResult.Error}");
-                return base.StopAsync(cancellationToken);
-            }
-            _sqlConnection = _dbConnectResult.Value;
+            ////var _dbConnectResult = new DbConnectHelper(_configuration).OpenConnection("MicroservicesLIVE").Result; //  TODO : UNCOMMENT FOR LIVE
+            //var _dbConnectResult = new DbConnectHelper(_configuration).OpenConnection("MicroservicesDEV").Result; //  TODO : COMMENT FOR LIVE
+            //if (!_dbConnectResult.IsSuccess)
+            //{
+            //    _logger.LogInformation($"{DateTime.Now} - {_dbConnectResult.Error}");
+            //    return base.StopAsync(cancellationToken);
+            //}
+            //_sqlConnection = _dbConnectResult.Value;
 
-            var _settingsResult = new GetSettingsHelper(_sqlConnection).GetValues().Result;
-            if (!_settingsResult.IsSuccess)
-            {
-                _logger.LogError(_dbConnectResult.Error);
-                return base.StopAsync(cancellationToken);
-            }
-            _settingsModel = _settingsResult.Value;
-            _logger.LogInformation("Connected to DB");
+            //var _settingsResult = new GetSettingsHelper(_sqlConnection).GetValues().Result;
+            //if (!_settingsResult.IsSuccess)
+            //{
+            //    _logger.LogError(_dbConnectResult.Error);
+            //    return base.StopAsync(cancellationToken);
+            //}
+            //_settingsModel = _settingsResult.Value;
+            //_logger.LogInformation("Connected to DB");
 
             stopwatch = new Stopwatch();
 
@@ -82,6 +82,14 @@ namespace NetDocsFileQueueFlusher
 
             try
             {
+                if (_sqlConnection == null) DoDbConnection();
+                if (_sqlConnection.State == ConnectionState.Closed) DoDbConnection();
+                if (_sqlConnection.State == ConnectionState.Broken)
+                {
+                    _sqlConnection.Close();
+                    DoDbConnection();
+                }
+
                 var _getQueueResult = GetDataHelper.Helper(null, _sqlConnection, "AAMicroserviceLargeFileFlushQueue").Result;
                 if (!_getQueueResult.IsSuccess)
                 {
@@ -198,6 +206,20 @@ namespace NetDocsFileQueueFlusher
                 _logger.LogError($"Update Queue Failed : {ex.Message}");
                 Paused = false;
             }
+        }
+
+        private void DoDbConnection()
+        {
+            var _dbConnectResult = new DbConnectHelper(_configuration).OpenConnection("MicroservicesLIVE").Result; //  TODO : UNCOMMENT FOR LIVE
+            //var _dbConnectResult = new DbConnectHelper(_configuration).OpenConnection("MicroservicesDEV").Result; //  TODO : COMMENT FOR LIVE
+            if (!_dbConnectResult.IsSuccess) _logger.LogInformation($"{DateTime.Now} - {_dbConnectResult.Error}");
+            _sqlConnection = _dbConnectResult.Value;
+
+            var _settingsResult = new GetSettingsHelper(_sqlConnection).GetValues().Result;
+            if (!_settingsResult.IsSuccess) _logger.LogError(_dbConnectResult.Error);
+            
+            _settingsModel = _settingsResult.Value;
+            _logger.LogInformation("Connected to DB");
         }
     }
 }
